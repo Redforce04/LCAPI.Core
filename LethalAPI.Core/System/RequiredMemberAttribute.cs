@@ -1,10 +1,8 @@
 ﻿// -----------------------------------------------------------------------
-// <copyright file="RequiredMemberAttribute.cs" company="Lethal Company Modding Community">
-// Copyright (c) Lethal Company Modding Community. All rights reserved.
-// Licensed under the GPL-3.0 license.
-// </copyright>
+// <copyright file="RequiredMemberAttribute.cs" company=".NET Foundation">
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
+// </copyright>
 // -----------------------------------------------------------------------
 
 #pragma warning disable

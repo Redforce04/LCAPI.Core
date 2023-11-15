@@ -28,7 +28,7 @@ public sealed class LcPluginInfo
     /// Initializes a new instance of the <see cref="LcPluginInfo"/> class.
     /// </summary>
     /// <param name="plugin">The plugin to register.</param>
-    public LcPluginInfo(BepInEx.PluginInfo plugin)
+    public LcPluginInfo(PluginInfo plugin)
     {
         if (plugin is null || !plugin.Instance)
         {
@@ -57,7 +57,7 @@ public sealed class LcPluginInfo
     /// <summary>
     /// Gets info about the dependencies and other important information.
     /// </summary>
-    public BepInEx.PluginInfo Info { get; }
+    public PluginInfo Info { get; }
 
     /// <summary>
     /// Gets the assembly of the plugin.
@@ -110,7 +110,7 @@ public sealed class LcPluginInfo
     /// </summary>
     internal static void LoadPlugins()
     {
-        foreach (BepInEx.PluginInfo plg in BepInEx.Bootstrap.Chainloader.PluginInfos.Values)
+        foreach (PluginInfo plg in BepInEx.Bootstrap.Chainloader.PluginInfos.Values)
         {
             Plugins.Add(new LcPluginInfo(plg));
         }

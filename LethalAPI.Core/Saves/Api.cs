@@ -8,10 +8,11 @@
 namespace LethalAPI.Core.Saves;
 
 using System.Linq;
+
 using Attributes;
 using BepInEx;
 using Features;
-using LethalAPI.Core.Internal;
+using Internal;
 
 /// <summary>
 /// Contains the main api for the saving endpoint.

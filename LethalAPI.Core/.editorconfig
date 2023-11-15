@@ -120,6 +120,15 @@ dotnet_diagnostic.CS1591.severity = none
 # SA1633: File should have header 
 dotnet_diagnostic.SA1633.severity = none
 
+[System/*.cs]
+# SA1633: File should have header 
+dotnet_diagnostic.SA1633.severity = none
+
+dotnet_diagnostic.SA1636.severity = none
+
+# SA1641: File should have copyright
+dotnet_diagnostic.SA1641.severity = none
+
 [Patches/*.cs]
 # SA1313: 
 dotnet_diagnostic.SA1313.severity = none
