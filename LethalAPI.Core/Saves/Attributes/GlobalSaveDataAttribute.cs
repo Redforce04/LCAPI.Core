@@ -1,11 +1,11 @@
 ﻿// -----------------------------------------------------------------------
-// <copyright file="GlobalSaveDataAttribute.cs" company="Lethal Company Modding Community">
-// Copyright (c) Lethal Company Modding Community. All rights reserved.
+// <copyright file="GlobalSaveDataAttribute.cs" company="LethalAPI Modding Community">
+// Copyright (c) LethalAPI Modding Community. All rights reserved.
 // Licensed under the GPL-3.0 license.
 // </copyright>
 // -----------------------------------------------------------------------
 
-namespace LCAPI.Core.Saves.Attributes;
+namespace LethalAPI.Core.Saves.Attributes;
 
 using System;
 

@@ -1,13 +1,15 @@
 ﻿// -----------------------------------------------------------------------
-// <copyright file="SaveData.cs" company="Lethal Company Modding Community">
-// Copyright (c) Lethal Company Modding Community. All rights reserved.
+// <copyright file="SaveData.cs" company="LethalAPI Modding Community">
+// Copyright (c) LethalAPI Modding Community. All rights reserved.
 // Licensed under the GPL-3.0 license.
 // </copyright>
 // -----------------------------------------------------------------------
 
-namespace LCAPI.Core.Saves.Features;
+namespace LethalAPI.Core.Saves.Features;
 
 using System;
+
+using LethalAPI.Core.Saves;
 
 #pragma warning disable SA1401 // Protected fields should be private.
 

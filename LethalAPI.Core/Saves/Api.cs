@@ -1,18 +1,17 @@
 ﻿// -----------------------------------------------------------------------
-// <copyright file="Api.cs" company="Lethal Company Modding Community">
-// Copyright (c) Lethal Company Modding Community. All rights reserved.
+// <copyright file="Api.cs" company="LethalAPI Modding Community">
+// Copyright (c) LethalAPI Modding Community. All rights reserved.
 // Licensed under the GPL-3.0 license.
 // </copyright>
 // -----------------------------------------------------------------------
 
-namespace LCAPI.Core.Saves;
+namespace LethalAPI.Core.Saves;
 
 using System.Linq;
-
 using Attributes;
 using BepInEx;
 using Features;
-using Internal;
+using LethalAPI.Core.Internal;
 
 /// <summary>
 /// Contains the main api for the saving endpoint.
