@@ -22,6 +22,8 @@
         <Platforms>AnyCPU</Platforms>
         <Optimize>true</Optimize>
         <DefineConstants>trace</DefineConstants>
+        <!-- Needed for BepInEx.AssemblyPublicizer compatibility with MonoMod internals -->
+        <NoWarn>$(NoWarn);CS0436</NoWarn>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" ExcludeAssets="runtime" />

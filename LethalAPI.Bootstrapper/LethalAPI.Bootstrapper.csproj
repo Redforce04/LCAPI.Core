@@ -22,6 +22,8 @@
         <Platforms>AnyCPU</Platforms>
         <Optimize>true</Optimize>
         <UnsafeCodeBlocks>true</UnsafeCodeBlocks>
+        <!-- Needed for BepInEx.AssemblyPublicizer compatibility with MonoMod internals -->
+        <NoWarn>$(NoWarn);CS0436</NoWarn>
     </PropertyGroup>
     
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
