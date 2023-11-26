@@ -1,5 +1,5 @@
 ﻿// -----------------------------------------------------------------------
-// <copyright file="MineInstance.cs" company="LethalAPI Modding Community">
+// <copyright file="WebInstance.cs" company="LethalAPI Modding Community">
 // Copyright (c) LethalAPI Modding Community. All rights reserved.
 // Licensed under the GPL-3.0 license.
 // </copyright>
@@ -12,22 +12,22 @@ using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// Contains the instance implementations for the mine.
+/// Contains the instance implementations for the web.
 /// </summary>
-public partial class Mine : Hazard<Landmine, Mine>
+public partial class Web : Hazard<SandSpiderWebTrap, Web>
 {
-    private Mine(GameObject mine)
-        : base(mine)
+    private Web(GameObject web)
+        : base(web)
     {
     }
 
     /// <summary>
-    /// Gets the transform of the mine.
+    /// Gets the transform of the web.
     /// </summary>
     public Transform Transform => Base.transform;
 
     /// <summary>
-    /// Gets or sets the position of the mine.
+    /// Gets or sets the position of the web.
     /// </summary>
     public Vector3 Position
     {
@@ -36,7 +36,7 @@ public partial class Mine : Hazard<Landmine, Mine>
     }
 
     /// <summary>
-    /// Gets or sets the rotation of the mine.
+    /// Gets or sets the rotation of the web.
     /// </summary>
     public Quaternion Rotation
     {
@@ -45,27 +45,17 @@ public partial class Mine : Hazard<Landmine, Mine>
     }
 
     /// <summary>
-    /// Gets or sets a value indicating whether or not the mine is disarmed.
+    /// Gets or sets the speed multiplier for the web.
     /// </summary>
-    public bool IsDisarmed
-    {
-        get => !Base.mineActivated;
-        set => Base.mineActivated = !value;
-    }
+    /// <remarks>1 is normal speed. Default is 0.25f. (Player is 4x slower).</remarks>
+    public float SpeedMultiplier { get; set; } = 0.25f;
 
     /// <summary>
-    /// Makes a mine explode.
+    /// Orients the web towards a specific position.
     /// </summary>
-    public void Explode()
+    /// <param name="positionToOrientTowards">The position to orient the web towards.</param>
+    public void OrientTowardsPosition(Vector3 positionToOrientTowards)
     {
-        Base.TriggerMineOnLocalClientByExiting();
-    }
-
-    /// <summary>
-    /// Spawns the mine on the network.
-    /// </summary>
-    public void Spawn()
-    {
-        this.GameObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+        Transform.LookAt(positionToOrientTowards);
     }
 }

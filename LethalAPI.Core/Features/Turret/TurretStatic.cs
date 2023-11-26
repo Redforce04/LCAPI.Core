@@ -20,13 +20,13 @@ using GameTurret = global::Turret;
 /// </summary>
 public partial class Turret
 {
-    private static GameObject? turretPrefab = null;
+    private static GameObject? turretPrefab;
 
     /// <summary>
-    /// Gets a list of the turrets found.
+    /// Gets or sets a list of the turrets found.
     /// </summary>
     // ReSharper disable once MemberCanBePrivate.Global
-    public static List<Turret> List => new();
+    public static List<Turret> List { get; set; } = new();
 
     /// <summary>
     /// Gets the base-game prefab for the component.

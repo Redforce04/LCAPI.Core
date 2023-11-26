@@ -21,10 +21,10 @@ public partial class Mine
     private static GameObject? minePrefab;
 
     /// <summary>
-    /// Gets a list of the mines found.
+    /// Gets or sets a list of the mines found.
     /// </summary>
     // ReSharper disable once MemberCanBePrivate.Global
-    public static List<Mine> List => new();
+    public static List<Mine> List { get; set; } = new();
 
     /// <summary>
     /// Gets the base-game prefab for the component.

@@ -9,6 +9,7 @@ namespace LethalAPI.Core.Patches.Events.Server;
 
 using LethalAPI.Core.Events.Attributes;
 using MEC;
+using UnityEngine;
 
 /// <summary>
 ///     Patches the <see cref="HandlersServer.GameOpened"/> event.
@@ -20,7 +21,6 @@ internal static class PreInitStartScreenPostfix
     [HarmonyPostfix]
     private static void Postfix(PreInitSceneScript __instance)
     {
-        Timing.Instance = __instance.gameObject.AddComponent<Timing>();
         HandlersServer.GameOpened.InvokeSafely();
     }
 }

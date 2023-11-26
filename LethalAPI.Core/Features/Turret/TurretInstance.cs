@@ -19,7 +19,7 @@ using GameTurret = global::Turret;
 /// <summary>
 /// Represents a turret and abstractions for a turret.
 /// </summary>
-public partial class Turret : TypeCastObject<GameTurret>
+public partial class Turret : Hazard<GameTurret, Turret>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="Turret"/> class.
@@ -29,6 +29,7 @@ public partial class Turret : TypeCastObject<GameTurret>
     /// </remarks>
     /// <param name="turret">The existing turret to use.</param>
     private Turret(GameObject turret)
+        : base(turret)
     {
         try
         {
@@ -44,16 +45,6 @@ public partial class Turret : TypeCastObject<GameTurret>
     }
 
     /// <summary>
-    /// Gets the underlying base instance of the turret.
-    /// </summary>
-    public GameTurret Base { get; init; } = null!;
-
-    /// <summary>
-    /// Gets the base GameObject of the turret.
-    /// </summary>
-    public GameObject GameObject { get; init; } = null!;
-
-    /// <summary>
     /// Gets the <see cref="Transform"/> of the turret.
     /// </summary>
     public Transform Transform => this.GameObject.transform;
@@ -64,7 +55,16 @@ public partial class Turret : TypeCastObject<GameTurret>
     public Vector3 Position
     {
         get => Transform.position;
-        set => Transform.position.Set(value.x, value.y, value.z);
+        set => Transform.position = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the rotation of a turret.
+    /// </summary>
+    public Quaternion Rotation
+    {
+        get => Transform.rotation;
+        set => Transform.rotation = value;
     }
 
     /// <summary>
@@ -99,7 +99,6 @@ public partial class Turret : TypeCastObject<GameTurret>
     /// Gets or sets a value representing the detection distance of the turret.
     /// </summary>
     /// <returns>The detection distance of the turret.</returns>
-    /// <remarks>Still needs a helper patch to accomplish this.</remarks>
     public float DetectionDistance { get; set; } = 30f;
 
     /// <summary>
