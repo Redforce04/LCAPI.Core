@@ -15,7 +15,6 @@ using System;
 
 using Features;
 using HarmonyLib;
-using MEC;
 
 /// <inheritdoc />
 public class CorePlugin : Plugin<CoreConfig>
@@ -55,19 +54,6 @@ public class CorePlugin : Plugin<CoreConfig>
 
         Instance = this;
 
-        Events.Handlers.Server.GameOpened += InitTimings;
         Log.Info($"{this.Name} is being loaded...");
-    }
-
-    private void InitTimings()
-    {
-        Timing.Instance.name = "Timing Controller";
-        Timing.Instance.OnException += OnError;
-    }
-
-    // ReSharper disable once ParameterHidesMember
-    private void OnError(Exception exception, string tag)
-    {
-        Log.Error($"Timings has caught an error during the execution of a coroutine{(tag == "Unknown" ? string.Empty : $" [{tag}]")}. Exception: \n" + exception.Message, "MEC Timings");
     }
 }
