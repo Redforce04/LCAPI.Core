@@ -187,6 +187,7 @@ namespace MEC
             {
                 _instance = value;
                 _instance.InitializeInstanceID();
+                DontDestroyOnLoad(_instance);
             }
         }
 

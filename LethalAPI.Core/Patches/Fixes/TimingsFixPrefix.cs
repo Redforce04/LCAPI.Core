@@ -13,13 +13,13 @@ using MEC;
 using UnityEngine;
 
 /// <summary>
-/// Patches the <see cref="GameNetworkManager"/> Constructor to attach the timing instance to.
+/// Patches the <see cref="GameNetworkManager.Awake"/> to attach the timing instance to.
 /// </summary>
-[HarmonyPatch(typeof(GameNetworkManager), MethodType.Constructor)]
+[HarmonyPatch(typeof(GameNetworkManager), nameof(GameNetworkManager.Awake))]
 internal static class TimingsFixPrefix
 {
-    [HarmonyPrefix]
-    private static void Prefix(GameNetworkManager __instance)
+    [HarmonyPostfix]
+    private static void Postfix(GameNetworkManager __instance)
     {
         Timing.Instance = new GameObject("Timings").AddComponent<Timing>();
         Timing.Instance.name = "Timing Controller";
