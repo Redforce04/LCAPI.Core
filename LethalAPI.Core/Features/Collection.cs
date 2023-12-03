@@ -15,6 +15,7 @@ using System.Diagnostics.CodeAnalysis;
 
 using Interfaces;
 
+#pragma warning disable SA1402 // only one type allowed.
 #pragma warning disable SA1401
 
 /// <summary>
@@ -31,11 +32,6 @@ public class Collection<T> : IEnumerable<T>
     protected readonly Dictionary<string, T> itemsByPrefix;
 
     /// <summary>
-    /// The items buy not sort.
-    /// </summary>
-    protected readonly List<T> Items;
-
-    /// <summary>
     /// Used to notate whether the collection has been loaded or not.
     /// </summary>
     protected bool isLoaded;
@@ -46,7 +42,6 @@ public class Collection<T> : IEnumerable<T>
     public Collection()
     {
         this.itemsByPrefix = new ();
-        this.Items = new ();
     }
 
     /// <summary>
@@ -56,34 +51,51 @@ public class Collection<T> : IEnumerable<T>
     public Collection(List<T> items)
     {
         this.itemsByPrefix = new();
-        this.Items = items;
-        foreach (T item in this.Items)
+        foreach (T item in items)
         {
             itemsByPrefix.Add(item.Prefix, item);
         }
     }
 
     /// <summary>
-    /// Gets a value indicating whether the collection is loaded.
+    /// Initializes a new instance of the <see cref="Collection{T}"/> class.
     /// </summary>
-    public bool IsLoaded => this.isLoaded;
+    /// <param name="items">The items to use.</param>
+    public Collection(Dictionary<string, T> items)
+    {
+        this.itemsByPrefix = items;
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether or not the collection should be lockable.
+    /// </summary>
+    protected virtual bool Lockable => false;
 
     /// <inheritdoc cref="TryGetItem"/>
-    public T this[string prefix]
+    /// <summary>
+    /// Safely retrieves or modifies an item.
+    /// </summary>
+    /// <param name="prefix">The item prefix.</param>
+    public T? this[string prefix]
     {
         get
         {
-            if (!this.TryGetItem(prefix, out T? result))
-            {
-                throw new ArgumentOutOfRangeException($"Feature {prefix} does not exist, and cannot be retrieved.");
-            }
+            this.itemsByPrefix.TryGetValue(prefix, out T? item);
+            return item;
+        }
 
-            if (result is null)
-            {
-                throw new ArgumentOutOfRangeException($"Feature {prefix} does not exist, and cannot be retrieved.");
-            }
+        set
+        {
+            if (value is null)
+                return;
 
-            return result;
+            if (this.Lockable && isLoaded)
+                return;
+
+            if (this.itemsByPrefix.ContainsKey(prefix))
+                this.itemsByPrefix[prefix] = value;
+
+            this.itemsByPrefix.Add(prefix, value);
         }
     }
 
@@ -91,7 +103,7 @@ public class Collection<T> : IEnumerable<T>
     /// Gets the count of the amount of items in the collection.
     /// </summary>
     /// <returns>The count of items in the collection.</returns>
-    public int GetCount() => this.Items.Count;
+    public int GetCount() => this.itemsByPrefix.Count;
 
     /// <summary>
     /// Attempts to get an item by its prefix.
@@ -110,7 +122,7 @@ public class Collection<T> : IEnumerable<T>
     /// <returns>An enumerator over the list of items.</returns>
     public IEnumerator<T> GetEnumerator()
     {
-        return this.Items.GetEnumerator();
+        return this.itemsByPrefix.Values.GetEnumerator();
     }
 
     /// <inheritdoc/>
@@ -120,16 +132,14 @@ public class Collection<T> : IEnumerable<T>
     }
 
     /// <summary>
-    /// Adds an item to the list.
+    /// Adds an item to the list if it isn't already present.
     /// </summary>
     /// <param name="item">The item to add.</param>
-    /// <param name="response">The error response.</param>
     /// <returns>A value indicating whether the operation was a success.</returns>
-    internal virtual bool TryAddItem(T item, [NotNullWhen(false)] out string? response)
+    public virtual bool TryAddItem(T item)
     {
-        if (this.isLoaded)
+        if (this.Lockable && this.isLoaded)
         {
-            response = $"Item '{item.Prefix}' could not be added. The collection is already loaded.";
             return false;
         }
 
@@ -137,20 +147,53 @@ public class Collection<T> : IEnumerable<T>
         {
             if (this.itemsByPrefix.ContainsKey(item.Prefix))
             {
-                response = $"Item '{item.Prefix}' could not be added due to a duplicate prefix.";
                 return false;
             }
 
             this.itemsByPrefix.Add(item.Prefix, item);
-            this.Items.Add(item);
-            response = null;
             return true;
         }
-        catch (Exception e)
+        catch (Exception)
         {
-            response = $"Error adding feature to list: {e}";
             return false;
         }
+    }
+
+    /// <summary>
+    /// Gets the value of an item or adds a new item if a value is not found.
+    /// </summary>
+    /// <param name="prefix">The prefix to search.</param>
+    /// <param name="item">The item to add if an item is not found.</param>
+    /// <returns>The resulting item. If the collection is locked this may be null.</returns>
+    /// <exception cref="LockedCollectionException">Thrown if the collection is lockable and has been loaded.</exception>
+    public T GetOrAddItem(string prefix, ref T item)
+    {
+        if (this.itemsByPrefix.TryGetValue(prefix, out T? addItem))
+            return addItem;
+
+        if (this.Lockable && this.isLoaded)
+        {
+            throw new LockedCollectionException();
+        }
+
+        this.itemsByPrefix.Add(prefix, item);
+        return this.itemsByPrefix[prefix];
+    }
+
+    /// <summary>
+    /// Modifies the value of an existing item or adds the item to the collection.
+    /// </summary>
+    /// <param name="prefix">The prefix to search.</param>
+    /// <param name="item">The new value of the item or the item to add.</param>
+    /// <returns>The resulting item.</returns>
+    /// <exception cref="LockedCollectionException">Thrown if the collection is lockable and has been loaded.</exception>
+    public virtual T ModifyOrAddItem(string prefix, T item)
+    {
+        if (this.Lockable && this.isLoaded)
+            throw new LockedCollectionException();
+
+        this.itemsByPrefix[prefix] = item;
+        return this.itemsByPrefix[prefix];
     }
 
     /// <summary>
@@ -160,4 +203,13 @@ public class Collection<T> : IEnumerable<T>
     {
         this.isLoaded = true;
     }
+}
+
+/// <summary>
+/// Called when a locked collection is modified.
+/// </summary>
+public class LockedCollectionException : Exception
+{
+    /// <inheritdoc />
+    public override string Message => "The collection you tried to modified is locked and can no-longer be modified.";
 }
