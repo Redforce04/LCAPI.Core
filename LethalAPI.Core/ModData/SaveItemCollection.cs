@@ -9,6 +9,7 @@ namespace LethalAPI.Core.ModData;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 using Features;
@@ -22,7 +23,7 @@ public sealed class SaveItemCollection : Collection<SaveItem>
     /// <summary>
     /// Initializes a new instance of the <see cref="SaveItemCollection"/> class.
     /// </summary>
-    public SaveItemCollection()
+    internal SaveItemCollection()
     {
     }
 
@@ -30,7 +31,16 @@ public sealed class SaveItemCollection : Collection<SaveItem>
     /// Initializes a new instance of the <see cref="SaveItemCollection"/> class.
     /// </summary>
     /// <param name="items">The items to use in the collection.</param>
-    public SaveItemCollection(List<SaveItem> items)
+    internal SaveItemCollection(List<SaveItem> items)
+        : base(items)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SaveItemCollection"/> class.
+    /// </summary>
+    /// <param name="items">The items to use in the collection.</param>
+    internal SaveItemCollection(Dictionary<string, SaveItem> items)
         : base(items)
     {
     }
@@ -38,7 +48,12 @@ public sealed class SaveItemCollection : Collection<SaveItem>
     /// <summary>
     /// Gets the collection as a list of saveItems.
     /// </summary>
-    internal List<SaveItem> AsList => this.Items;
+    internal List<SaveItem> AsList => this.itemsByPrefix.Values.ToList();
+
+    /// <summary>
+    /// Gets the collection as a list of saveItems.
+    /// </summary>
+    internal Dictionary<string, SaveItem> AsDictionary => this.itemsByPrefix;
 
     /// <summary>
     /// Gets a new save instance from a type, with the values present here.
