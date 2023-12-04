@@ -16,6 +16,7 @@ using System.Reflection.Emit;
 using System.Text;
 
 using Attributes;
+using Enums;
 using Interfaces;
 
 /// <summary>
@@ -40,7 +41,7 @@ internal class PropertySaveHandler : GenericSaveHandler, IInstanceSave
         {
             if (propertyInfo.Name == propertyName)
             {
-                this.Settings = new SaveDataSettings(true, true);
+                this.Settings = new SaveDataSettings();
                 this.Property = propertyInfo;
                 goto ensureValid;
             }
@@ -50,14 +51,14 @@ internal class PropertySaveHandler : GenericSaveHandler, IInstanceSave
                 if (propertyInfo.GetCustomAttribute<GlobalSaveDataAttribute>() is not { } globalSettings)
                     continue;
 
-                this.Settings = globalSettings.Settings;
+                this.Settings = globalSettings.GlobalSaveSettings;
                 goto ensureValid;
             }
 
             if (propertyInfo.GetCustomAttribute<LocalSaveDataAttribute>() is not { } localSettings)
                 continue;
 
-            this.Settings = localSettings.Settings;
+            this.Settings = localSettings.LocalSaveSettings;
 
             // Check to ensure the property has a getter and setter. If it doesnt, continue.
             ensureValid:
@@ -65,7 +66,7 @@ internal class PropertySaveHandler : GenericSaveHandler, IInstanceSave
                 continue;
 
             this.Property = propertyInfo;
-            if(this.Settings.AutoSave)
+            if(this.Settings.AutoSave == AutoSaveMode.ItemChanged)
                 HookAutoSave();
             Log.Debug($"Successfully created property save handler for plugin {plugin.Name} [{Settings.AutoSave}, {Settings.AutoLoad}].");
             return;
@@ -100,21 +101,12 @@ internal class PropertySaveHandler : GenericSaveHandler, IInstanceSave
     /// </summary>
     protected PropertyInfo Property { get; init; } = null!;
 
-    /// <inheritdoc/>
-    public void OnSaveUpdated()
-    {
-        if (this.Settings.AutoSave)
-        {
-            this.SaveData();
-        }
-    }
-
     /// <summary>
     /// Hooks the auto-saving functions for a save instance.
     /// </summary>
     protected void HookAutoSave()
     {
-        Log.Debug("Hooking autosave functions.");
+        Log.Debug("Hooking AutoSave functions.");
         HarmonyMethod method = new(typeof(PropertySaveHandler), nameof(HandleUpdateTranspiler));
 
         // CorePlugin.Harmony.Patch(this.Property.SetMethod, method);
