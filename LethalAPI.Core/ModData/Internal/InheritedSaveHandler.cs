@@ -10,6 +10,7 @@ namespace LethalAPI.Core.ModData.Internal;
 using System;
 using System.Reflection;
 
+using Enums;
 using Interfaces;
 
 /// <inheritdoc />
@@ -60,7 +61,7 @@ internal sealed class InheritedSaveHandler : PropertySaveHandler
         this.Settings = (SaveDataSettings)this.PluginInstance.GetType().GetProperty((searchGlobal ? "Global" : "Local") + "SaveSettings", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(plugin);
         this.Property = this.PluginInstance.GetType().GetProperty((searchGlobal ? "Global" : "Local") + "SaveData")!;
 
-        if(Settings.AutoSave)
+        if(Settings.AutoSave == AutoSaveMode.ItemChanged)
             HookAutoSave();
         Log.Debug($"Successfully created inherited save handler for plugin {plugin.Name} [{Settings.AutoSave}, {Settings.AutoLoad}].");
     }
