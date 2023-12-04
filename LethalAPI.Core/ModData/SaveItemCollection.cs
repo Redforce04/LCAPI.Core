@@ -100,13 +100,10 @@ public sealed class SaveItemCollection : Collection<SaveItem>
                 }
 
                 this.itemsByPrefix[property.Name] = og;
-                int index = this.Items.FindIndex(x => x.Prefix == property.Name);
-                this.Items[index] = og;
                 continue;
             }
 
             SaveItem item = new(property.Name, value);
-            this.Items.Add(item);
             this.itemsByPrefix.Add(property.Name, item);
         }
     }
