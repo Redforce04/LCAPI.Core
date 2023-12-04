@@ -447,16 +447,14 @@ public sealed class PluginLoader
         }
         catch (ReflectionTypeLoadException reflectionTypeLoadException)
         {
-            Log.Error($"Error while initializing plugin {assembly.GetName().Name} (at {assembly.Location})! {reflectionTypeLoadException}");
+            Log.Error($"Error while initializing plugin {assembly.GetName().Name} (at {assembly.Location})!");
 
-            foreach (Exception loaderException in reflectionTypeLoadException.LoaderExceptions)
-            {
-                Log.Error(loaderException);
-            }
+            Log.Exception(reflectionTypeLoadException);
         }
         catch (Exception exception)
         {
-            Log.Error($"Error while initializing plugin {assembly.GetName().Name} (at {assembly.Location})! {exception}");
+            Log.Error($"Error while initializing plugin {assembly.GetName().Name} (at {assembly.Location})!");
+            Log.Exception(exception);
         }
 
         return null;
