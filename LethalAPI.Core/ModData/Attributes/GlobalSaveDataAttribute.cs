@@ -9,6 +9,7 @@ namespace LethalAPI.Core.ModData.Attributes;
 
 using System;
 
+using Enums;
 using Internal;
 
 /// <summary>
@@ -22,13 +23,13 @@ public sealed class GlobalSaveDataAttribute : Attribute
     /// </summary>
     /// <param name="autoLoad">Indicate whether this will be automatically loaded when the game begin to load it data.</param>
     /// <param name="autoSave">Indicate whether this will be automatically saved when the game begin to save it data.</param>
-    public GlobalSaveDataAttribute(bool autoLoad = true, bool autoSave = true)
+    public GlobalSaveDataAttribute(bool autoLoad = true, AutoSaveMode autoSave = AutoSaveMode.GameSaved)
     {
-        this.Settings = new SaveDataSettings(autoLoad, autoSave);
+        this.GlobalSaveSettings = new SaveDataSettings(autoLoad, autoSave);
     }
 
     /// <summary>
     /// Gets contains the general settings for saving and loading data.
     /// </summary>
-    internal SaveDataSettings Settings { get; }
+    internal SaveDataSettings GlobalSaveSettings { get; }
 }
