@@ -7,6 +7,8 @@
 
 namespace LethalAPI.Core.ModData.Internal;
 
+using Enums;
+
 /// <summary>
 /// Contains settings which indicate how to handle saving and loading data.
 /// </summary>
@@ -17,7 +19,7 @@ public sealed class SaveDataSettings
     /// </summary>
     /// <param name="autoLoad">Indicates whether or not to auto-load data.</param>
     /// <param name="autoSave">Indicates whether or not to auto-save data.</param>
-    public SaveDataSettings(bool autoLoad, bool autoSave)
+    public SaveDataSettings(bool autoLoad = true, AutoSaveMode autoSave = AutoSaveMode.GameSaved)
     {
         this.AutoLoad = autoLoad;
         this.AutoSave = autoSave;
@@ -31,5 +33,5 @@ public sealed class SaveDataSettings
     /// <summary>
     /// Gets a value indicating whether indicate whether this will be automatically saved when the game begin to save it data.
     /// </summary>
-    public bool AutoSave { get; init; }
+    public AutoSaveMode AutoSave { get; init; }
 }
