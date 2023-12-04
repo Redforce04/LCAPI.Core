@@ -18,9 +18,4 @@ public interface IInstanceSave
     /// Gets or sets the save instance to use.
     /// </summary>
     public abstract ISave Save { get; set; }
-
-    /// <summary>
-    /// Called when a save is updated.
-    /// </summary>
-    public void OnSaveUpdated();
 }
