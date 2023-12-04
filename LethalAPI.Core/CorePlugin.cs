@@ -13,9 +13,11 @@ namespace LethalAPI.Core;
 #pragma warning disable SA1309 // Names should not start with an underscore. ie: _Logger.
 using System;
 
+using Events.EventArgs.Server;
 using Features;
 using HarmonyLib;
 using MEC;
+using ModData;
 
 /// <inheritdoc />
 public class CorePlugin : Plugin<CoreConfig>
@@ -61,7 +63,7 @@ public class CorePlugin : Plugin<CoreConfig>
         Instance = this;
 
         Events.Handlers.Server.GameOpened += InitTimings;
-        Events.Handlers.Server.GameOpened += InitModData;
+        Events.Handlers.Server.LoadingSave += InitModData;
         Log.Info($"{this.Name} is being loaded...");
     }
 
@@ -71,9 +73,10 @@ public class CorePlugin : Plugin<CoreConfig>
         Timing.Instance.OnException += OnError;
     }
 
-    private void InitModData()
+    private void InitModData(LoadingSaveEventArgs ev)
     {
-        // ModData.SaveInfo.PopulateModData();
+        SaveManager.Init();
+        Events.Handlers.Server.LoadingSave -= InitModData;
     }
 
     // ReSharper disable once ParameterHidesMember
