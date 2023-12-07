@@ -20,7 +20,8 @@ using MEC;
 using ModData;
 
 /// <inheritdoc />
-public class CorePlugin : Plugin<CoreConfig>
+// We name this "CorePlugin" so it won't be confused with "Plugin."
+public sealed class CorePlugin : Plugin<CoreConfig>
 {
     /// <summary>
     /// Gets the main instance of the core plugin.
@@ -64,7 +65,7 @@ public class CorePlugin : Plugin<CoreConfig>
 
         Events.Handlers.Server.GameOpened += InitTimings;
         Events.Handlers.Server.LoadingSave += InitModData;
-        Log.Info($"{this.Name} is being loaded...");
+        Log.Debug($"Started {this.Name} successfully.");
     }
 
     private void InitTimings()

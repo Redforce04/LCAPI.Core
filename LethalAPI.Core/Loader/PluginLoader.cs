@@ -449,7 +449,10 @@ public sealed class PluginLoader
         {
             Log.Error($"Error while initializing plugin {assembly.GetName().Name} (at {assembly.Location})!");
 
-            Log.Exception(reflectionTypeLoadException);
+            foreach (Exception loaderException in reflectionTypeLoadException.LoaderExceptions)
+            {
+                Log.Exception(loaderException);
+            }
         }
         catch (Exception exception)
         {
