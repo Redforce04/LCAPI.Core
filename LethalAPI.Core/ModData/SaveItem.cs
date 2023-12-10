@@ -9,6 +9,7 @@
 namespace LethalAPI.Core.ModData;
 
 using Interfaces;
+using Newtonsoft.Json;
 
 /// <summary>
 /// Represents and item that can be saved.
@@ -38,6 +39,7 @@ public class SaveItem : IPrefixableItem
     /// <summary>
     /// Gets the type of the <see cref="Value"/>.
     /// </summary>
+    [JsonIgnore]
     public Type Type { get; }
 }
 

@@ -14,9 +14,11 @@ using System.IO;
 using System.Reflection;
 
 using Enums;
+using Events.EventArgs.Server;
 using Interfaces;
 using Internal;
 using Loader;
+using Loader.Configs;
 using MEC;
 using Newtonsoft.Json;
 
@@ -25,24 +27,6 @@ using Newtonsoft.Json;
 /// </summary>
 public static class SaveManager
 {
-    private const int SecondsBetweenSaves = 2;
-
-    private static int secondsUntilNextSave;
-
-    /// <summary>
-    /// Gets the current save slot that the player has selected.
-    /// </summary>
-    /// <seealso cref="GameNetworkManager.currentSaveFileName"/>
-    public static SaveSlots CurrentSaveSlot => GameNetworkManager.Instance.currentSaveFileName switch
-    {
-        // Note: This slot will never be selected, it is just here as a quick reference.
-        "LCGeneralSaveData" => SaveSlots.GlobalSlot,
-        "LCSaveFile1" => SaveSlots.Slot1,
-        "LCSaveFile2" => SaveSlots.Slot2,
-        "LCSaveFile3" => SaveSlots.Slot3,
-        _ => SaveSlots.Slot1,
-    };
-
     /// <summary>
     /// Gets or sets a dictionary of plugin global save data.
     /// </summary>
@@ -50,10 +34,10 @@ public static class SaveManager
     internal static Dictionary<string, SaveItemCollection> GlobalSaves { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets a dictionary of plugin local save data.
+    /// Gets a dictionary of plugin local save data.
     /// </summary>
     // ReSharper disable once CollectionNeverQueried.Local
-    internal static Dictionary<string, SaveItemCollection> LocalSaves { get; set; } = new();
+    internal static Dictionary<string, SaveItemCollection> LocalSaves { get; private set; } = new();
 
     /// <summary>
     /// Gets the directory where saves are stored.
@@ -61,20 +45,20 @@ public static class SaveManager
     private static string LCSaveDirectory => UnityEngine.Application.persistentDataPath;
 
     /// <summary>
+    /// Gets the current save slot that the player has selected.
+    /// </summary>
+    /// <seealso cref="GameNetworkManager.currentSaveFileName"/>
+    private static SaveSlots CurrentSaveSlot => GetSaveSlot(GameNetworkManager.Instance.currentSaveFileName);
+
+    /// <summary>
     /// Gets the name of the file which global modded data is stored.
     /// </summary>
-    private static string GlobalModdedSaveFileName => "LCGlobalModdedSaveData";
+    private static string GlobalModdedSaveFileName => GetModdedSaveFile(SaveSlots.GlobalSlot);
 
     /// <summary>
     /// Gets the name of the <see cref="CurrentSaveSlot">currently selected file</see> which the local modded data is stored.
     /// </summary>
-    private static string LocalModdedSaveFileName => CurrentSaveSlot switch
-    {
-        SaveSlots.Slot1 => "LCModdedSaveFile1",
-        SaveSlots.Slot2 => "LCModdedSaveFile2",
-        SaveSlots.Slot3 => "LCModdedSaveFile3",
-        _ => "LCModdedSaveFile1",
-    };
+    private static string LocalModdedSaveFileName => GetModdedSaveFile(CurrentSaveSlot);
 
     /// <summary>
     /// Loads the plugin-save information from the selected save file for the calling plugin.
@@ -141,9 +125,54 @@ public static class SaveManager
     }
 
     /// <summary>
-    /// Starts the save system.
+    /// Loads the modded data once the game loads the data.
     /// </summary>
-    internal static void Init() => Timing.RunCoroutine(SaveHandler(), "SaveHandler");
+    /// <param name="ev">The data load event.</param>
+    internal static void LoadDataEvent(LoadingSaveEventArgs ev)
+    {
+        if (ev.SaveSlot == "LCGeneralSaveData")
+        {
+            DeserializeAllSaves(true);
+            return;
+        }
+
+        if (ev.LoadedItem != LoadedItem.LoadUnlockables)
+            return;
+
+        DeserializeAllSaves();
+    }
+
+    /// <summary>
+    /// Saves the modded data after a save.
+    /// </summary>
+    /// <param name="ev">The save event.</param>
+    internal static void SaveDataEvent(SavingEventArgs ev)
+    {
+        if (ev.SaveSlot == "LCGeneralSaveData")
+        {
+            UpdateAllPlugins(true);
+            SerializeAllSaves(true);
+            return;
+        }
+
+        if (ev.SaveItem != Events.EventArgs.Server.SaveItem.ShipItems)
+            return;
+
+        UpdateAllPlugins();
+        SerializeAllSaves();
+    }
+
+    /// <summary>
+    /// Resets a modded save file.
+    /// </summary>
+    /// <param name="ev">The reset save event.</param>
+    internal static void ResetSaveEvent(ResetSaveEventArgs ev)
+    {
+        string dataToReset = Path.Combine(LCSaveDirectory, GetModdedSaveFile(GetSaveSlot(ev.SaveSlot)));
+
+        if(File.Exists(dataToReset))
+            File.Delete(dataToReset);
+    }
 
     /// <summary>
     /// Saves a plugin's save-data.
@@ -167,8 +196,7 @@ public static class SaveManager
             plugin.LocalSaveHandler.DataCollection.UpdateCollectionWithObjectValues(localSaveHandler.Save);
 
         LocalSaves[plugin.Name] = plugin.LocalSaveHandler.DataCollection;
-        if (secondsUntilNextSave == 0)
-            secondsUntilNextSave += SecondsBetweenSaves;
+        SerializeAllSaves();
     }
 
     /// <summary>
@@ -179,27 +207,10 @@ public static class SaveManager
     internal static void LoadData(IPlugin<IConfig> plugin, bool global = false)
     {
         Log.Debug($"Loading data for plugin {plugin.Name}{(global ? " [&2Global&r]" : string.Empty)}.");
-        if (global)
-        {
-            DeserializeAllSaves(true);
-            if (!GlobalSaves.ContainsKey(plugin.Name))
-            {
-                GenerateNewSaveCollection(plugin, true);
-                SerializeAllSaves();
-            }
-
-            plugin.GlobalSaveHandler.DataCollection = GlobalSaves.TryGetValue(plugin.Name, out SaveItemCollection? globalSave) ? globalSave : new();
-            return;
-        }
-
-        DeserializeAllSaves();
-        if (!LocalSaves.ContainsKey(plugin.Name))
-        {
+        if (!(global ? GlobalSaves : LocalSaves).ContainsKey(plugin.Name))
             GenerateNewSaveCollection(plugin);
-            SerializeAllSaves();
-        }
 
-        plugin.GlobalSaveHandler.DataCollection = LocalSaves.TryGetValue(plugin.Name, out SaveItemCollection? localSave) ? localSave : new();
+        (global ? plugin.GlobalSaveHandler : plugin.LocalSaveHandler).DataCollection = (global ? GlobalSaves : LocalSaves)[plugin.Name];
     }
 
     /// <summary>
@@ -218,12 +229,16 @@ public static class SaveManager
         return PluginLoader.GetPlugin(type.Assembly);
     }
 
+    // Only should be called on the main save.
     private static void DeserializeAllSaves(bool global = false)
     {
         Log.Debug($"Loading all plugin data{(global ? " [&2Global&r]" : string.Empty)}.");
         string path = GetCurrentSavePath(global);
         string data = File.Exists(path) ? File.ReadAllText(path) : string.Empty;
-        Dictionary<string, List<SaveItem>>? values = JsonConvert.DeserializeObject<Dictionary<string, List<SaveItem>>>(data);
+        JsonSerializerSettings serializer = Serialization.DefaultJsonSerializerSettings;
+        serializer.Formatting = Formatting.None;
+        serializer.DefaultValueHandling = DefaultValueHandling.Populate;
+        Dictionary<string, List<SaveItem>>? values = JsonConvert.DeserializeObject<Dictionary<string, List<SaveItem>>>(data, serializer);
         if (values is null)
         {
             if(global)
@@ -232,7 +247,7 @@ public static class SaveManager
                 LocalSaves = new();
 
             Log.Error("The save file has been corrupted and could not be loaded.");
-            Log.Debug($"Slot: {(global ? LocalModdedSaveFileName : GlobalModdedSaveFileName)}. Null or empty save slot.");
+            Log.Debug($"Slot: {(global ? GlobalModdedSaveFileName : LocalModdedSaveFileName)}. Null or empty save slot.");
 
             try
             {
@@ -263,6 +278,19 @@ public static class SaveManager
             else
                 (global ? GlobalSaves : LocalSaves).Add(kvp.Key, collection);
         }
+
+        bool changed = false;
+        foreach (IPlugin<IConfig> plugin in PluginLoader.Plugins.Values)
+        {
+            if (!(global ? GlobalSaves : LocalSaves).ContainsKey(plugin.Name))
+            {
+                GenerateNewSaveCollection(plugin, global);
+                changed = true;
+            }
+        }
+
+        if(changed)
+            SerializeAllSaves();
     }
 
     private static void GenerateNewSaveCollection(IPlugin<IConfig> plugin, bool global = false)
@@ -276,7 +304,7 @@ public static class SaveManager
                 object? value = null;
                 try
                 {
-                    value = Activator.CreateInstance(globalSave.Save.GetType(), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.CreateInstance);
+                    value = Activator.CreateInstance(globalSave.Save.GetType(), nonPublic: true);
                 }
                 catch (Exception e)
                 {
@@ -287,6 +315,8 @@ public static class SaveManager
 
                 if(value is not null)
                     collection.UpdateCollectionWithObjectValues(value);
+
+                globalSave.Save = (ISave)value!;
             }
 
             GlobalSaves.Add(plugin.Name, collection);
@@ -298,7 +328,7 @@ public static class SaveManager
             object? value = null;
             try
             {
-                value = Activator.CreateInstance(localSave.Save.GetType(), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.CreateInstance);
+                value = Activator.CreateInstance(localSave.Save.GetType(), nonPublic: true);
             }
             catch (Exception e)
             {
@@ -309,9 +339,28 @@ public static class SaveManager
 
             if(value is not null)
                 collection.UpdateCollectionWithObjectValues(value);
+
+            localSave.Save = (ISave)value!;
         }
 
         LocalSaves.Add(plugin.Name, collection);
+    }
+
+    private static void UpdateAllPlugins(bool global = false)
+    {
+        foreach (IPlugin<IConfig> plugin in PluginLoader.Plugins.Values)
+        {
+            if (global && plugin.GlobalSaveHandler is IInstanceSave globalSaveHandler)
+            {
+                plugin.GlobalSaveHandler.DataCollection.UpdateCollectionWithObjectValues(globalSaveHandler.Save);
+                continue;
+            }
+
+            if (!global && plugin.LocalSaveHandler is IInstanceSave localSaveHandler)
+            {
+                plugin.LocalSaveHandler.DataCollection.UpdateCollectionWithObjectValues(localSaveHandler.Save);
+            }
+        }
     }
 
     private static void SerializeAllSaves(bool global = false)
@@ -323,7 +372,10 @@ public static class SaveManager
             items.Add(saves.Key, saves.Value.AsList);
         }
 
-        string json = JsonConvert.SerializeObject(items);
+        JsonSerializerSettings serializer = Serialization.DefaultJsonSerializerSettings;
+        serializer.Formatting = Formatting.None;
+        serializer.DefaultValueHandling = DefaultValueHandling.Populate;
+        string json = JsonConvert.SerializeObject(items, serializer);
         string path = GetCurrentSavePath(global);
         try
         {
@@ -337,20 +389,33 @@ public static class SaveManager
         }
     }
 
-    private static IEnumerator<float> SaveHandler()
+    /// <summary>
+    /// Gets the <see cref="SaveSlots"/> from a save slot name.
+    /// </summary>
+    /// <returns>The corresponding <see cref="SaveSlots"/> for the file name.</returns>
+    /// <param name="fileName">The name of th file.</param>
+    /// <seealso cref="GameNetworkManager.currentSaveFileName"/>
+    private static SaveSlots GetSaveSlot(string fileName) => fileName switch
     {
-        while (true)
-        {
-            yield return Timing.WaitForSeconds(1);
-            if (secondsUntilNextSave == 0)
-                continue;
+        // Note: This slot will never be selected, it is just here as a quick reference.
+        "LCGeneralSaveData" => SaveSlots.GlobalSlot,
+        "LCSaveFile1" => SaveSlots.Slot1,
+        "LCSaveFile2" => SaveSlots.Slot2,
+        "LCSaveFile3" => SaveSlots.Slot3,
+        _ => SaveSlots.Slot1,
+    };
 
-            secondsUntilNextSave--;
-
-            if (secondsUntilNextSave == 0)
-                SerializeAllSaves();
-        }
-
-        // ReSharper disable once IteratorNeverReturns
-    }
+    /// <summary>
+    /// Gets the modded file name from a save slot.
+    /// </summary>
+    /// <param name="slot">The slot to get.</param>
+    /// <returns>The file name of the save slot.</returns>
+    private static string GetModdedSaveFile(SaveSlots slot) => slot switch
+    {
+        SaveSlots.Slot1 => "LCModdedSaveFile1",
+        SaveSlots.Slot2 => "LCModdedSaveFile2",
+        SaveSlots.Slot3 => "LCModdedSaveFile3",
+        SaveSlots.GlobalSlot => "LCGlobalModdedSaveData",
+        _ => "LCModdedSaveFile1",
+    };
 }

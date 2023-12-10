@@ -64,7 +64,11 @@ public sealed class CorePlugin : Plugin<CoreConfig>
         Instance = this;
 
         Events.Handlers.Server.GameOpened += InitTimings;
-        Events.Handlers.Server.LoadingSave += InitModData;
+        Events.Handlers.Server.LoadingSave += SaveManager.LoadDataEvent;
+        Events.Handlers.Server.Saving += SaveManager.SaveDataEvent;
+
+        // Needs to be implemented.
+        // Events.Handlers.Server.Reset += SaveManager.ResetSaveEvent;
         Log.Debug($"Started {this.Name} successfully.");
     }
 
@@ -72,12 +76,6 @@ public sealed class CorePlugin : Plugin<CoreConfig>
     {
         Timing.Instance.name = "Timing Controller";
         Timing.Instance.OnException += OnError;
-    }
-
-    private void InitModData(LoadingSaveEventArgs ev)
-    {
-        SaveManager.Init();
-        Events.Handlers.Server.LoadingSave -= InitModData;
     }
 
     // ReSharper disable once ParameterHidesMember

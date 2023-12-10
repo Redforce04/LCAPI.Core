@@ -62,22 +62,22 @@ public enum SaveItem
     Mods,
 
     /// <summary>
-    /// Game stats are being saved. Called after GameNetworkManager.SaveGameValues.
+    /// Game stats are being saved. Called after <see cref="GameNetworkManager.SaveGameValues" />.
     /// </summary>
     GameValues,
 
     /// <summary>
-    /// Ship items are saved. Called after GameNetworkManager.SaveItemsInShip.
+    /// Ship items are saved. Called after <see cref="GameNetworkManager.SaveItemsInShip" />.
     /// </summary>
     ShipItems,
 
     /// <summary>
-    /// Unsellable items are saved. Called after GameNetworkManager.ConvertUnsellableItemsToCredits.
+    /// Unsellable items are saved. Called after <see cref="GameNetworkManager.ConvertUnsellableItemsToCredits" />.
     /// </summary>
     UnsellableItems,
 
     /// <summary>
-    /// Local player values are saved. Called after GameNetworkManager.SaveLocalPlayerValues.
+    /// Local player values are saved. Called after <see cref="GameNetworkManager.SaveLocalPlayerValues" />.
     /// </summary>
     LocalPlayerValues,
 }
