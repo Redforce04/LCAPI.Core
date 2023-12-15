@@ -10,6 +10,7 @@ namespace LethalAPI.Core.Features;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Attributes;
 using Interfaces;
 using Loader;
@@ -27,7 +28,7 @@ internal static class PluginHelper
     /// </summary>
     /// <param name="plugin"> The plugin to check. </param>
     /// <returns> True if the plugin is required, false otherwise. </returns>
-    internal static bool IsPluginRequired(IPlugin<IConfig> plugin)
+    internal static bool IsPluginRequired(IPlugin plugin)
     {
         return plugin.RootInstance.GetType().GetCustomAttributes(typeof(LethalRequiredPluginAttribute), false).Any();
     }

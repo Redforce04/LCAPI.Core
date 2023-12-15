@@ -23,7 +23,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-
+using Features;
 using Interfaces;
 using MonoMod.RuntimeDetour;
 using Patches.Fixes;
@@ -127,12 +127,15 @@ public sealed class PluginLoader
     {
     }
 
-    private void LoadBepInExPlugins()
+    /// <summary>
+    /// Loads all BepInEx plugins.
+    /// </summary>
+    internal static void LoadBepInExPlugins()
     {
         foreach (BepInEx.PluginInfo plugin in BepInEx.Bootstrap.Chainloader.PluginInfos.Values)
         {
-            ExternalPlugin externalPlugin = new (plugin);
-            PluginsValue.Add(externalPlugin.Name, externalPlugin);
+            BepInExPlugin bepInExPlugin = new (plugin);
+            PluginsValue.Add(bepInExPlugin.Name, bepInExPlugin);
         }
     }
 }
