@@ -10,7 +10,7 @@ namespace LethalAPI.Core.Interfaces;
 using System.ComponentModel;
 
 /// <summary>
-/// The main interface for a plugin.
+/// The main interface for a plugin config.
 /// </summary>
 public interface IConfig
 {
