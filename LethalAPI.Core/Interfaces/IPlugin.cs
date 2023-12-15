@@ -13,16 +13,8 @@ using System.Reflection;
 /// <summary>
 /// The main interface for implementing a plugin.
 /// </summary>
-/// <typeparam name="TConfig">The config type of the plugin.</typeparam>
-public interface IPlugin<out TConfig>
-    where TConfig : IConfig
+public interface IPlugin
 {
-    /// <summary>
-    /// Gets the config.
-    /// </summary>
-    /// <remarks>If utilizing the <see cref="IConfig"/> interface, this must be = new() / not null.</remarks>
-    public TConfig Config { get; }
-
     /// <summary>
     /// Gets the assembly that the plugin is located in.
     /// </summary>
@@ -54,31 +46,7 @@ public interface IPlugin<out TConfig>
     public Version RequiredAPIVersion { get; }
 
     /// <summary>
-    /// Updates a config with a new config.
-    /// </summary>
-    /// <param name="newConfig">The new config to use.</param>
-    public void UpdateConfig(object newConfig);
-
-    /// <summary>
     /// Occurs when the plugin is enabled.
     /// </summary>
     public void OnEnabled();
-
-    /// <summary>
-    /// Occurs when the plugin is disabled.
-    /// </summary>
-    public void OnDisabled();
-
-    /// <summary>
-    /// Occurs when the plugin is reloaded.
-    /// </summary>
-    /// <example>
-    /// Reload Execution order:
-    /// <code>
-    /// OnDisabled(); ->
-    /// OnReloaded(); ->
-    /// OnEnabled();
-    /// </code>
-    /// </example>
-    public void OnReloaded();
 }
