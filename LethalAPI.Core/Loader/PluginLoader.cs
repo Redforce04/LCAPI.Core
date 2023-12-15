@@ -126,4 +126,13 @@ public sealed class PluginLoader
     internal static void LoadAllPlugins()
     {
     }
+
+    private void LoadBepInExPlugins()
+    {
+        foreach (BepInEx.PluginInfo plugin in BepInEx.Bootstrap.Chainloader.PluginInfos.Values)
+        {
+            ExternalPlugin externalPlugin = new (plugin);
+            PluginsValue.Add(externalPlugin.Name, externalPlugin);
+        }
+    }
 }

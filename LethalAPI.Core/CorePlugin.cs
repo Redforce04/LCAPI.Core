@@ -77,7 +77,8 @@ public sealed class CorePlugin : BaseUnityPlugin
         Instance = this;
 
         Events.Handlers.Server.GameOpened += Init;
-        Log.Debug($"Started {Name} successfully.");
+        Events.Handlers.Server.GameOpened += PluginLoader.Singleton.LoadExternalPlugins;
+        Log.Info($"{Name} is being loaded...");
     }
 
     private void Init()

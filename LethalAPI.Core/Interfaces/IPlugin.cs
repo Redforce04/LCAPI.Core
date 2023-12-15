@@ -10,6 +10,8 @@ namespace LethalAPI.Core.Interfaces;
 using System;
 using System.Reflection;
 
+using Models;
+
 /// <summary>
 /// The main interface for implementing a plugin.
 /// </summary>
@@ -19,6 +21,16 @@ public interface IPlugin
     /// Gets the assembly that the plugin is located in.
     /// </summary>
     public Assembly Assembly { get; init; }
+
+    /// <summary>
+    /// Gets the root instance of the plugin.
+    /// </summary>
+    public object RootInstance { get; }
+
+    /// <summary>
+    /// Gets the <see cref="PluginInfoRecord"/> pertaining to this plugin.
+    /// </summary>
+    public PluginInfoRecord Info { get; }
 
     /// <summary>
     /// Gets the name of the plugin.
