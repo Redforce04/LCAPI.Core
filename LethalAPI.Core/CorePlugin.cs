@@ -77,7 +77,7 @@ public sealed class CorePlugin : BaseUnityPlugin
         Instance = this;
 
         Events.Handlers.Server.GameOpened += Init;
-        Events.Handlers.Server.GameOpened += PluginLoader.Singleton.LoadExternalPlugins;
+        Events.Handlers.Server.GameOpened += PluginLoader.LoadBepInExPlugins;
         Log.Info($"{Name} is being loaded...");
     }
 
