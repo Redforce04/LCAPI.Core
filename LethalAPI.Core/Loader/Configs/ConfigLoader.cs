@@ -13,7 +13,9 @@ using System.Diagnostics.Contracts;
 using System.IO;
 using System.Reflection;
 
+using Core;
 using Interfaces;
+using Loader;
 using Resources;
 using UnityEngine.UIElements;
 using YamlDotNet.Serialization;
@@ -72,7 +74,7 @@ public static class ConfigLoader
                 return;
             }
 
-            foreach (IPlugin<IConfig> plugin in PluginLoader.Plugins.Values)
+            foreach (IPlugin plugin in PluginLoader.Plugins.Values)
             {
                 LoadConfig(plugin);
             }
@@ -95,12 +97,13 @@ public static class ConfigLoader
     /// Loads the config for a specific plugin instance.
     /// </summary>
     /// <param name="plugin">The plugin instance to load the config for.</param>
-    public static void LoadConfig(IPlugin<IConfig> plugin)
+    public static void LoadConfig(IPlugin plugin)
     {
-        if (LoadSeperatedConfigFiles)
-            plugin.UpdateConfig(GetSeparatedConfigValue(plugin));
-        else
-            plugin.UpdateConfig((IConfig)GetConfigValueForPlugin(plugin));
+        // ReSharper disable once SuspiciousTypeConversion.Global
+        if (plugin is not IConfigurablePlugin<IConfig> conf)
+            return;
+
+        conf.Config = LoadSeperatedConfigFiles ? GetSeparatedConfigValue(plugin)! : GetConfigValueForPlugin(plugin)!;
     }
 
     [Pure]
@@ -122,13 +125,17 @@ public static class ConfigLoader
         pluginConfigs ??= new();
 
         bool changed = false;
-        foreach (IPlugin<IConfig> plugin in PluginLoader.Plugins.Values)
+        foreach (IPlugin plugin in PluginLoader.Plugins.Values)
         {
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            if (plugin is not IConfigurablePlugin<IConfig> configurablePlugin)
+                continue;
+
             object conf;
             if (!pluginConfigs.TryGetValue(plugin.Name.ToSnakeCase(), out conf))
             {
                 Log.Info($"[Combined] Plugin config for plugin '{plugin.Name}' is missing! Generating new config.");
-                returnedConfigs.Add(plugin.Name.ToSnakeCase(), plugin.Config);
+                returnedConfigs.Add(plugin.Name.ToSnakeCase(), configurablePlugin.Config);
                 changed = true;
                 continue;
             }
@@ -136,12 +143,12 @@ public static class ConfigLoader
             try
             {
                 string rawConfigString = Serialization.YamlSerializer.Serialize(conf);
-                IConfig configSerialized = (IConfig)Serialization.YamlDeserializer.Deserialize(rawConfigString, plugin.Config.GetType())!;
+                IConfig configSerialized = (IConfig)Serialization.YamlDeserializer.Deserialize(rawConfigString, configurablePlugin.Config.GetType())!;
                 returnedConfigs.Add(plugin.Name.ToSnakeCase(), configSerialized);
             }
             catch (Exception)
             {
-                returnedConfigs.Add(plugin.Name.ToSnakeCase(), plugin.Config);
+                returnedConfigs.Add(plugin.Name.ToSnakeCase(), configurablePlugin.Config);
                 changed = true;
             }
         }
@@ -157,18 +164,28 @@ public static class ConfigLoader
     }
 
     [Pure]
-    private static object GetConfigValueForPlugin(IPlugin<IConfig> plugin)
-        => GetLatestCombinedConfig()[plugin.Name.ToSnakeCase()];
+    private static IConfig? GetConfigValueForPlugin(IPlugin plugin)
+    {
+        Dictionary<string, IConfig> confs = GetLatestCombinedConfig();
+        if (!confs.ContainsKey(plugin.Name.ToSnakeCase()))
+            return null;
+
+        return confs[plugin.Name.ToSnakeCase()];
+    }
 
     [Pure]
-    private static object GetSeparatedConfigValue(IPlugin<IConfig> plugin)
+    private static IConfig? GetSeparatedConfigValue(IPlugin plugin)
     {
+        // ReSharper disable once SuspiciousTypeConversion.Global
+        if (plugin is not IConfigurablePlugin<IConfig> configurablePlugin)
+            return null;
+
         string path = Path.Combine(ConfigDirectory, plugin.Name + ".yml");
         object? conf = null;
         try
         {
             if(File.Exists(path))
-                conf = Serialization.YamlDeserializer.Deserialize(File.ReadAllText(path), plugin.Config.GetType());
+                conf = Serialization.YamlDeserializer.Deserialize(File.ReadAllText(path), configurablePlugin.Config.GetType());
             else
                 Log.Warn($"Config for plugin '{plugin.Name}' was not found! A new one will be made.");
         }
@@ -178,25 +195,25 @@ public static class ConfigLoader
             Log.Exception(e);
         }
 
-        if (conf is null || (!conf.GetType().IsSubclassOf(plugin.Config.GetType()) && conf.GetType() != plugin.Config.GetType()))
+        if (conf is null || (!conf.GetType().IsSubclassOf(configurablePlugin.Config.GetType()) && conf.GetType() != configurablePlugin.Config.GetType()))
         {
-            conf ??= plugin.Config;
+            conf ??= configurablePlugin.Config;
             try
             {
                 // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
-                conf ??= Activator.CreateInstance(plugin.Config.GetType(), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.CreateInstance);
+                conf ??= Activator.CreateInstance(configurablePlugin.Config.GetType(), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.CreateInstance);
             }
             catch (Exception)
             {
-                Log.Error($"Could not find the default constructor for a config of type {plugin.Config.GetType()}.");
+                Log.Error($"Could not find the default constructor for a config of type {configurablePlugin.Config.GetType()}.");
             }
 
             MakeBackupOfConfig(path);
             File.WriteAllText(path, Serialization.YamlSerializer.Serialize(conf));
-            Log.Warn($"[Seperated] Plugin config for plugin '{plugin.Name}' is invalid. Generating default values. [{plugin.Config.GetType().Name} != {conf.GetType().Name}]");
+            Log.Warn($"[Seperated] Plugin config for plugin '{plugin.Name}' is invalid. Generating default values. [{configurablePlugin.Config.GetType().Name} != {conf.GetType().Name}]");
         }
 
-        return conf;
+        return conf as IConfig;
     }
 
     private static void LoadAllConfigsCombined()
@@ -211,15 +228,19 @@ public static class ConfigLoader
             Log.Exception(e);
         }
 
-        foreach (IPlugin<IConfig> plugin in PluginLoader.Plugins.Values)
+        foreach (IPlugin plugin in PluginLoader.Plugins.Values)
         {
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            if (plugin is not IConfigurablePlugin<IConfig> conf)
+                continue;
+
             if (!latestConf.ContainsKey(plugin.Name.ToSnakeCase()))
             {
                 Log.Warn($"Missing config for '{plugin.Name}'.");
                 continue;
             }
 
-            plugin.UpdateConfig(latestConf[plugin.Name.ToSnakeCase()]);
+            conf.Config = latestConf[plugin.Name.ToSnakeCase()];
         }
     }
 
