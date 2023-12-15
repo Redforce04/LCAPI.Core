@@ -17,9 +17,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
+using BepInEx.Logging;
 using Interfaces;
 using Loader;
-using MelonLoader;
 using Serilog;
 
 // ReSharper Unity.PerformanceAnalysis
@@ -31,6 +31,10 @@ using Serilog;
 /// </summary>
 public static class Log
 {
+    /// <summary>
+    /// The logger instance to use.
+    /// </summary>
+    private static ManualLogSource logger = null!;
     private static bool useSerilog;
 
     static Log()
@@ -183,8 +187,6 @@ public static class Log
         const bool showDate = false;
         const bool showSeconds = true;
         const bool showMilliseconds = false;
-        if (PluginLoader.MelonLoaderFound)
-            return string.Empty;
         DateTime now = DateTime.Now;
         StringBuilder builder = new();
         builder.Append('[');
@@ -228,49 +230,22 @@ public static class Log
             Type type = method.DeclaringType!;
 
             Assembly assembly = method.DeclaringType.Assembly;
-            IPlugin<IConfig>? plugin = null;
-            foreach (IPlugin<IConfig> plgn in PluginLoader.Plugins.Values)
+            IPlugin? plugin = PluginLoader.Plugins.FirstOrDefault(x => x.Value.Assembly == assembly).Value;
+
+            if (plugin is null)
             {
-                if (!PluginLoader.Locations.ContainsKey(assembly))
-                    break;
+                // Use the name of the assembly.
+                input = method.DeclaringType.Assembly.GetName().Name;
 
-                if (plgn.Assembly == assembly && plgn.Assembly.DefinedTypes.Contains(method.DeclaringType))
-                {
-                    plugin = plgn;
-                    break;
-                }
+                // Check to see if the assembly should be called something else.
+                if (AssemblyNameReplacements.ContainsKey(input) && AssemblyNameReplacements.TryGetValue(input, out string replacementName))
+                    input = replacementName!;
             }
-
-            if (plugin is not null)
+            else
             {
                 input = plugin.Name;
-                goto skip;
             }
 
-            // Check to see if it is a bepinex mod.
-            if (PluginLoader.BepInExFound)
-            {
-                input = GetBepInExTypeLoadPreventor(method);
-                if (input != string.Empty)
-                    goto skip;
-            }
-
-            // Check to see if it is a melonmod.
-            if (PluginLoader.MelonLoaderFound)
-            {
-                input = GetMelonLoaderTypeLoadPreventor(method);
-                if (input != string.Empty)
-                    goto skip;
-            }
-
-            // Use the name of the assembly.
-            input = method.DeclaringType.Assembly.GetName().Name;
-
-            // Check to see if the assembly should be called something else.
-            if (AssemblyNameReplacements.ContainsKey(input) && AssemblyNameReplacements.TryGetValue(input, out string replacementName))
-                input = replacementName!;
-
-            skip:
             if (!includeMethod)
                 return input;
 
@@ -336,15 +311,21 @@ public static class Log
         }
 
         MethodBase method = GetCallingMethod();
-        if (!PluginLoader.Locations.ContainsKey(method.DeclaringType!.Assembly))
+
+        if (PluginLoader.Plugins.All(x => x.Value.Assembly != method.DeclaringType?.Assembly))
             return;
 
-        IPlugin<IConfig>? plugin = PluginLoader.Plugins.Values.FirstOrDefault(x => x.Assembly == method.DeclaringType.Assembly && x.Assembly.DefinedTypes.Contains(method.DeclaringType));
+        IPlugin? plugin = PluginLoader.Plugins.Values.FirstOrDefault(x => x.Assembly == method.DeclaringType?.Assembly && x.Assembly.DefinedTypes.Contains(method.DeclaringType));
         if (plugin is null)
             return;
 
-        if (!plugin.Config.Debug)
-            return;
+        /*
+         Done in the External Plugin Loader.
+         if (plugin is IConfigurablePlugin config)
+         {
+             if (!config.Debug)
+                 return;
+         }*/
 
         callingPlugin = GetCallingPlugin(method, callingPlugin, ShowCallingMethod);
 
@@ -438,15 +419,25 @@ public static class Log
             StackTrace stack = new(x ? 3 : 2);
 
             MethodBase method = stack.GetFrame(0).GetMethod();
-            if (!PluginLoader.Locations.ContainsKey(method.DeclaringType!.Assembly))
+            if (PluginLoader.Plugins.All(y => y.Value.Assembly != method.DeclaringType?.Assembly))
+            {
+                Error($"{exception.Message}");
                 return;
+            }
 
-            IPlugin<IConfig>? plugin = PluginLoader.Plugins.Values.FirstOrDefault(plugin => plugin.Assembly == method.DeclaringType.Assembly && plugin.Assembly.DefinedTypes.Contains(method.DeclaringType));
+            IPlugin? plugin = PluginLoader.Plugins.Values.FirstOrDefault(plugin => plugin.Assembly == method.DeclaringType?.Assembly && plugin.Assembly.DefinedTypes.Contains(method.DeclaringType));
             if (plugin is null)
+            {
+                Error($"{exception.Message}");
                 return;
+            }
 
-            if (!plugin.Config.Debug)
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            if (plugin is not IConfigurablePlugin<IConfig> conf || !conf.Config.Debug)
+            {
+                Error($"{exception.Message}");
                 return;
+            }
         }
 
         callingPlugin = GetCallingPlugin(GetCallingMethod(), callingPlugin, ShowCallingMethod);
@@ -497,6 +488,11 @@ public static class Log
     // ReSharper disable once Unity.PerformanceCriticalCodeInvocation
     public static void Raw(string message)
     {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (logger is null)
+            return;
+
+        logger.Log(0, message);
     }
 
     /// <summary>
@@ -516,63 +512,6 @@ public static class Log
         int spaces = length - source.Length;
         int padLeft = (spaces / 2) + source.Length;
         return source.PadLeft(padLeft, padChar).PadRight(length, padChar);
-    }
-
-    // Used to prevent typeload exceptions (system only checks one method deep, this checks two methods to avoid it.)
-    private static string GetBepInExTypeLoadPreventor(MethodBase method) =>
-        GetBepInExPluginName(method);
-
-    private static string GetMelonLoaderTypeLoadPreventor(MethodBase method) =>
-        GetMelonLoaderPluginName(method);
-
-    private static string GetBepInExPluginName(MethodBase method)
-    {
-        Assembly assembly = method.DeclaringType!.Assembly;
-        if (BepInEx.Bootstrap.Chainloader.PluginInfos is not null)
-        {
-            // FirstOrDefault keeps throwing a NullReferenceException. This doesnt throw an exception so we will use it.
-            foreach (KeyValuePair<string, BepInEx.PluginInfo> modInfo in BepInEx.Bootstrap.Chainloader.PluginInfos)
-            {
-                if (modInfo.Value?.Instance is null)
-                {
-                    continue;
-                }
-
-                if (modInfo.Value.Instance.Info.Instance.GetType().Assembly != assembly)
-                {
-                    continue;
-                }
-
-                return modInfo.Value.Metadata.Name;
-            }
-        }
-
-        return string.Empty;
-    }
-
-    private static string GetMelonLoaderPluginName(MethodBase method)
-    {
-        Assembly assembly = method.DeclaringType!.Assembly;
-        if (MelonMod.RegisteredMelons is not null)
-        {
-            // FirstOrDefault keeps throwing a NullReferenceException. This doesnt throw an exception so we will use it.
-            foreach (MelonMod mod in MelonMod.RegisteredMelons)
-            {
-                if (mod.MelonAssembly.Assembly is null)
-                {
-                    continue;
-                }
-
-                if (mod.MelonAssembly.Assembly != assembly)
-                {
-                    continue;
-                }
-
-                return mod.Info.Name;
-            }
-        }
-
-        return string.Empty;
     }
 
     /// <summary>
@@ -647,5 +586,14 @@ public static class Log
         }
 
         return color == null;
+    }
+
+    /// <summary>
+    /// Initializes the logging instance with a logger.
+    /// </summary>
+    /// <param name="newlogger">The logger to init.</param>
+    internal static void LoadLogger(ManualLogSource newlogger)
+    {
+        Log.logger = newlogger;
     }
 }
