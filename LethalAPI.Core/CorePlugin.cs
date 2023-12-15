@@ -13,14 +13,42 @@ namespace LethalAPI.Core;
 #pragma warning disable SA1309 // Names should not start with an underscore. ie: _Logger.
 using System;
 
-using Features;
+using BepInEx;
 using HarmonyLib;
+using Loader;
+using Loader.Configs;
 using MEC;
+using Patches.Fixes;
 
 /// <inheritdoc />
 // We name this "CorePlugin" so it won't be confused with "Plugin."
-public sealed class CorePlugin : Plugin<CoreConfig>
+[BepInPlugin("LethalAPI.Core", "LethalAPI.Core", "1.0.0")]
+public sealed class CorePlugin : BaseUnityPlugin
 {
+    /*
+     * Keeping these here in-case another plugin wants to get more detailed plugin information.
+     */
+
+    /// <summary>
+    /// The name of the plugin.
+    /// </summary>
+    public const string Name = PluginInfo.PLUGIN_NAME;
+
+    /// <summary>
+    /// The description of the plugin.
+    /// </summary>
+    public const string Description = "The core library for lethal api.";
+
+    /// <summary>
+    /// The author of the plugin.
+    /// </summary>
+    public const string Author = "Lethal API Modding Community";
+
+    /// <summary>
+    /// The version of the plugin.
+    /// </summary>
+    public static readonly Version Version = Version.Parse(PluginInfo.PLUGIN_VERSION);
+
     /// <summary>
     /// Gets the main instance of the core plugin.
     /// </summary>
@@ -31,24 +59,16 @@ public sealed class CorePlugin : Plugin<CoreConfig>
     /// </summary>
     internal static Harmony Harmony = null!;
 
-    /// <inheritdoc />
-    // sets this so the config name isn't a mess. :)
-    public override string Name => "LethalApi-Core";
-
-    /// <inheritdoc />
-    public override string Description => "The core library for lethal api.";
-
-    /// <inheritdoc />
-    public override string Author => "Lethal API Modding Community";
-
-    /// <inheritdoc />
-    public override Version Version => Version.Parse(PluginInfo.PLUGIN_VERSION);
-
-    /// <inheritdoc />
-    public override void OnEnabled()
+    /// <summary>
+    /// Called on the plugin start.
+    /// </summary>
+    public void Awake()
     {
         Instance = this;
         Harmony = new(PluginInfo.PLUGIN_GUID);
+        BepInExLogFix.Patch(Harmony);
+
+        _ = new PluginLoader();
 
         // Events.Events contains the instance. This should become a plugin for loading and config purposes, in the future.
         // Events..cctor -> Patcher.PatchAll will do the patching. This is necessary for dynamic patching.
@@ -56,12 +76,14 @@ public sealed class CorePlugin : Plugin<CoreConfig>
 
         Instance = this;
 
-        Events.Handlers.Server.GameOpened += InitTimings;
-        Log.Debug($"Started {this.Name} successfully.");
+        Events.Handlers.Server.GameOpened += Init;
+        Log.Debug($"Started {Name} successfully.");
     }
 
-    private void InitTimings()
+    private void Init()
     {
+        PluginLoader.LoadAllPlugins();
+        ConfigLoader.LoadAllConfigs();
         Timing.Instance.name = "Timing Controller";
         Timing.Instance.OnException += OnError;
     }
