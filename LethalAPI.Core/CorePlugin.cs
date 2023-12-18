@@ -12,12 +12,14 @@ namespace LethalAPI.Core;
 #pragma warning disable SA1401 // field should be made private
 #pragma warning disable SA1309 // Names should not start with an underscore. ie: _Logger.
 using System;
-
+using System.Diagnostics;
+using System.Reflection;
 using BepInEx;
 using HarmonyLib;
 using Loader;
 using Loader.Configs;
 using MEC;
+using MonoMod.RuntimeDetour;
 using Patches.Fixes;
 
 /// <inheritdoc />
@@ -68,6 +70,9 @@ public sealed class CorePlugin : BaseUnityPlugin
         Harmony = new(PluginInfo.PLUGIN_GUID);
         BepInExLogFix.Patch(Harmony);
 
+        // Hooks and fixes the exception stacktrace il.
+        _ = new ILHook(typeof(StackTrace).GetMethod("AddFrames", BindingFlags.Instance | BindingFlags.NonPublic), FixExceptionIL.IlHook);
+
         _ = new PluginLoader();
 
         // Events.Events contains the instance. This should become a plugin for loading and config purposes, in the future.
@@ -77,13 +82,12 @@ public sealed class CorePlugin : BaseUnityPlugin
         Instance = this;
 
         Events.Handlers.Server.GameOpened += Init;
-        Events.Handlers.Server.GameOpened += PluginLoader.LoadBepInExPlugins;
         Log.Info($"{Name} is being loaded...");
     }
 
     private void Init()
     {
-        PluginLoader.LoadAllPlugins();
+        PluginLoader.LoadBepInExPlugins();
         ConfigLoader.LoadAllConfigs();
         Timing.Instance.name = "Timing Controller";
         Timing.Instance.OnException += OnError;

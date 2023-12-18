@@ -19,14 +19,12 @@ namespace LethalAPI.Core.Loader;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+
 using Features;
 using Interfaces;
-using MonoMod.RuntimeDetour;
-using Patches.Fixes;
 using Resources;
 
 /// <summary>
@@ -49,9 +47,6 @@ public sealed class PluginLoader
         Log.Raw("[LethalAPI-Loader] Initializing Loader.");
         Singleton = this;
 
-        // Hooks and fixes the exception stacktrace il.
-        _ = new ILHook(typeof(StackTrace).GetMethod("AddFrames", BindingFlags.Instance | BindingFlags.NonPublic), FixExceptionIL.IlHook);
-
         // Ensure that these are registered by loading the reference.
         _ = new UnknownResourceParser();
         _ = new DllParser();
@@ -60,14 +55,32 @@ public sealed class PluginLoader
         _ = new EmbeddedResourceLoader();
 
         ConfigDirectory = BepInEx.Paths.ConfigPath;
+        DependencyDirectory = Path.GetFullPath(Path.Combine(BepInEx.Paths.PluginPath, "../", "Dependencies"));
+
         if(!Directory.Exists(ConfigDirectory))
             Directory.CreateDirectory(ConfigDirectory);
+
+        if(!Directory.Exists(DependencyDirectory))
+            Directory.CreateDirectory(DependencyDirectory);
+        try
+        {
+            LoadDependencies();
+        }
+        catch (Exception e)
+        {
+            Log.Exception(e);
+        }
     }
 
     /// <summary>
     /// Gets or sets the base directory for configs.
     /// </summary>
     public static string ConfigDirectory { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the base directory of the dependency folder.
+    /// </summary>
+    public static string DependencyDirectory { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets the version of the assembly.
@@ -78,7 +91,14 @@ public sealed class PluginLoader
     /// Gets plugin dependencies.
     /// </summary>
     // ReSharper disable once CollectionNeverQueried.Global
+    // ReSharper disable once CollectionNeverUpdated.Global
     public static List<Assembly> Dependencies { get; private set; } = new();
+
+    /// <summary>
+    /// Gets a dictionary containing the file paths of assemblies.
+    /// </summary>
+    // ReSharper disable once CollectionNeverQueried.Global
+    public static Dictionary<Assembly, string> Locations { get; private set; } = new();
 
     /// <summary>
     /// Gets a dictionary of all registered plugins, with the key being the plugin name.
@@ -104,12 +124,12 @@ public sealed class PluginLoader
     }
 
     /// <summary>
-    /// Gets a plugin with its prefix or name.
+    /// Gets a plugin with its name.
     /// </summary>
-    /// <param name="args">The name or prefix of the plugin (Using the prefix is recommended).</param>
+    /// <param name="name">The name of the plugin.</param>
     /// <returns>The desired plugin, null if not found.</returns>
-    public static IPlugin? GetPlugin(string args) =>
-        Plugins.ContainsKey(args) ? Plugins[args] : null;
+    public static IPlugin? GetPlugin(string name) =>
+        Plugins.ContainsKey(name) ? Plugins[name] : null;
 
     /// <summary>
     /// Gets a plugin with its type.
@@ -121,10 +141,78 @@ public sealed class PluginLoader
         Plugins.FirstOrDefault(x => x.Value.GetType() == typeof(TPlugin)).Value;
 
     /// <summary>
-    /// Loads all plugins.
+    /// Gets a plugin with its assembly.
     /// </summary>
-    internal static void LoadAllPlugins()
+    /// <param name="assembly">The assembly of the plugin to find.</param>
+    /// <returns>The desired plugin, null if not found.</returns>
+    public static IPlugin? GetPlugin(Assembly assembly) =>
+        Plugins.FirstOrDefault(x => x.Value.Assembly == assembly).Value;
+
+    /// <summary>
+    /// Loads an assembly.
+    /// </summary>
+    /// <param name="path">The path to load the assembly from.</param>
+    /// <returns>Returns the loaded assembly or <see langword="null"/>.</returns>
+    public static Assembly? LoadAssembly(string path)
     {
+        try
+        {
+            Assembly assembly = Assembly.Load(File.ReadAllBytes(path));
+
+            try
+            {
+                EmbeddedResourceLoader.Instance.GetEmbeddedObjects(assembly);
+            }
+            catch (Exception e)
+            {
+                Log.Warn($"Could not load embedded assemblies.");
+                Log.Exception(e);
+            }
+
+            return assembly;
+        }
+        catch (Exception exception)
+        {
+            Log.Error($"Error while loading an assembly at {path}! {exception}");
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks the required api version against a plugin's required api version.
+    /// </summary>
+    /// <param name="plugin">The plugin the check.</param>
+    /// <returns>True if the required api version is present. False otherwise.</returns>
+    public static bool CheckPluginRequiredAPIVersion(IPlugin plugin)
+    {
+        Version requiredVersion = plugin.RequiredAPIVersion;
+        Version actualVersion = PluginLoader.Version;
+
+        // Check Major version
+        // It's increased when an incompatible API change was made
+        if (requiredVersion.Major != actualVersion.Major)
+        {
+            // Assume that if the Required Major version is greater than the Actual Major version,
+            // LethalAPI is outdated
+            if (requiredVersion.Major > actualVersion.Major)
+            {
+                Log.Error($"You're running an older version of LethalAPI ({PluginLoader.Version.ToString(3)})! {plugin.Name} won't be loaded! " +
+                    $"Required version to load it: {plugin.RequiredAPIVersion.ToString(3)}");
+
+                return true;
+            }
+
+            if (requiredVersion.Major < actualVersion.Major)
+            {
+                Log.Error($"You're running an older version of {plugin.Name} ({plugin.Version.ToString(3)})! " +
+                    $"Its Required Major version is {requiredVersion.Major}, but the actual version is: {actualVersion.Major}. This plugin will not be loaded!");
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -135,7 +223,38 @@ public sealed class PluginLoader
         foreach (BepInEx.PluginInfo plugin in BepInEx.Bootstrap.Chainloader.PluginInfos.Values)
         {
             BepInExPlugin bepInExPlugin = new (plugin);
-            PluginsValue.Add(bepInExPlugin.Name, bepInExPlugin);
+            RegisterPlugin(bepInExPlugin);
+        }
+    }
+
+    /// <summary>
+    /// Loads all dependencies.
+    /// </summary>
+    // ReSharper disable once UnusedMember.Local
+    private static void LoadDependencies()
+    {
+        try
+        {
+            Log.Info($"Loading dependencies at {DependencyDirectory}");
+
+            foreach (string dependency in Directory.GetFiles(DependencyDirectory, "*.dll"))
+            {
+                Assembly? assembly = LoadAssembly(dependency);
+                if (assembly is null)
+                    continue;
+
+                Locations[assembly] = dependency;
+
+                Dependencies.Add(assembly);
+
+                Log.Info($"Loaded &fDependency &h'&3{assembly.GetName().Name}&h'&7@&gv{assembly.GetName().Version.ToString(3)}&7");
+            }
+
+            Log.Info("Dependencies loaded successfully!");
+        }
+        catch (Exception exception)
+        {
+            Log.Error($"An error has occurred while loading dependencies! {exception}");
         }
     }
 }
